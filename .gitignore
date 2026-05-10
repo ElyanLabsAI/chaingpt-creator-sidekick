@@ -1,0 +1,98 @@
+# ============================================================
+# Secrets — NEVER commit these
+# ============================================================
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.secret
+*.secrets
+.secrets/
+credentials.json
+config/secrets.json
+auth.json
+.netrc
+.npmrc
+.pypirc
+**/api_key*
+**/api-key*
+**/apikey*
+
+# Wallet / crypto material — never commit
+wallet*.json
+keystore/
+*.wallet
+seed.txt
+seed-phrase*
+mnemonic*
+private-key*
+
+# ============================================================
+# Node / npm / pnpm / yarn
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/
+.pnp.*
+
+# ============================================================
+# Build output
+# ============================================================
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# ============================================================
+# Test / coverage
+# ============================================================
+coverage/
+.nyc_output/
+*.lcov
+.jest-cache/
+
+# ============================================================
+# Logs / runtime
+# ============================================================
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================================
+# IDE / editor
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================
+# OS junk
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Local-only scratch
+# ============================================================
+scratch/
+tmp/
+.cache/

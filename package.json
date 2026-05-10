@@ -1,0 +1,37 @@
+{
+  "name": "chaingpt-creator-sidekick",
+  "version": "0.0.1",
+  "description": "Open-source AI features for video creator platforms, powered by ChainGPT API. Built by Elyan Labs as a reference integration. BoTTube uses this as its first implementation.",
+  "type": "module",
+  "main": "src/chaingpt-client.js",
+  "scripts": {
+    "demo:tip": "node --env-file=.env cli.js tip",
+    "demo:script": "node --env-file=.env cli.js script",
+    "demo:both": "node --env-file=.env cli.js both",
+    "test": "node --env-file=.env test/test_tipping_coach.js && node --env-file=.env test/test_script_to_thumbnail.js",
+    "test:tip": "node --env-file=.env test/test_tipping_coach.js",
+    "test:script": "node --env-file=.env test/test_script_to_thumbnail.js"
+  },
+  "keywords": [
+    "chaingpt",
+    "creator-economy",
+    "ai",
+    "web3",
+    "video-platform",
+    "elyan-labs",
+    "bottube"
+  ],
+  "license": "MIT",
+  "author": "Elyan Labs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elyanlabs/chaingpt-creator-sidekick.git"
+  },
+  "dependencies": {
+    "@chaingpt/ainews": "^0.0.9",
+    "@chaingpt/generalchat": "^0.0.17",
+    "@chaingpt/nft": "^0.1.2",
+    "@chaingpt/smartcontractauditor": "^0.0.2",
+    "@chaingpt/smartcontractgenerator": "^0.0.5"
+  }
+}
