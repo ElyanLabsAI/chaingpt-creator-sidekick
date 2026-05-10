@@ -36,12 +36,17 @@ export class ThumbnailImage {
       videoLengthMinutes,
     });
 
-    if (!concept.thumbnailConcept) {
-      throw new Error('ThumbnailImage.fromScript: scriptToThumbnail returned no thumbnailConcept');
-    }
-
-    // Step 2 — build a clean image-generation prompt from the concept
+    // Step 2 — build a clean image-generation prompt from whatever we got.
+    // If thumbnailConcept is empty (model drift), fall back to title + description.
+    // If all three are empty, that's a real failure.
     const imagePrompt = this._buildImagePrompt(concept, audienceTone);
+    if (!imagePrompt || imagePrompt.length < 30) {
+      throw new Error(
+        `ThumbnailImage.fromScript: could not build image prompt — concept was sparse. ` +
+        `Got: title="${concept.title}", description="${(concept.description || '').slice(0, 50)}...", ` +
+        `thumbnailConcept="${(concept.thumbnailConcept || '').slice(0, 50)}..."`
+      );
+    }
 
     // Step 3 — generate
     const image = await this._nft.generateImage({
@@ -71,7 +76,16 @@ export class ThumbnailImage {
   }
 
   _buildImagePrompt(concept, audienceTone = 'crypto-native') {
-    const { title, thumbnailConcept } = concept;
-    return `YouTube thumbnail for video "${title}". ${thumbnailConcept}. High contrast, bold composition, ${audienceTone} aesthetic. No watermark, no signature.`.replace(/\s+/g, ' ').trim();
+    const { title, description, thumbnailConcept } = concept;
+
+    // Prefer explicit thumbnail concept; fall back to title + description.
+    const visualSeed = thumbnailConcept || description || title || '';
+    const titleRef = title ? `for video "${title}"` : '';
+
+    if (!visualSeed) return '';
+
+    return `YouTube thumbnail ${titleRef}. ${visualSeed}. High contrast, bold composition, ${audienceTone} aesthetic. No watermark, no signature.`
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }
