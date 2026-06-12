@@ -28,7 +28,7 @@
   "author": "Elyan Labs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/elyanlabs/chaingpt-creator-sidekick.git"
+    "url": "git+https://github.com/ElyanLabsAI/chaingpt-creator-sidekick.git"
   },
   "dependencies": {
     "@chaingpt/ainews": "^0.0.9",
