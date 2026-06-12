@@ -5,17 +5,23 @@
 // If the model returns malformed JSON, returns { _raw, _parseFailed: true }
 // so callers can decide whether to retry or display fallback UI.
 
+import { sanitizeForPrompt, clampBody } from './sanitize.js';
+
 export async function scriptToThumbnail(client, input) {
   if (!input?.script) {
     throw new Error('scriptToThumbnail: script is required');
   }
 
-  const {
-    script,
-    creatorName,
-    audienceTone = 'crypto-native',
-    videoLengthMinutes,
-  } = input;
+  // SECURITY/COST: the script is creator-supplied but unbounded — clampBody caps
+  // its length (bounding the paid API call) and rejects absurd sizes outright.
+  // creatorName and audienceTone are sanitized in case they originate from user
+  // input upstream.
+  const script = clampBody(input.script, { fieldName: 'script', maxLen: 8000 });
+  const creatorName = sanitizeForPrompt(input.creatorName, { maxLen: 80 });
+  const audienceTone = sanitizeForPrompt(input.audienceTone, { maxLen: 60 }) || 'crypto-native';
+  const videoLengthMinutes = Number.isFinite(Number(input.videoLengthMinutes))
+    ? Number(input.videoLengthMinutes)
+    : undefined;
 
   const lengthLine = videoLengthMinutes
     ? `~${videoLengthMinutes} minutes long`
