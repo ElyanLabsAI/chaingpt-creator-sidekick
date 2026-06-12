@@ -43,7 +43,13 @@ import { ChainGPTClient } from './src/chaingpt-client.js';
 import { tippingCoach } from './src/tipping-coach.js';
 import { scriptToThumbnail } from './src/script-to-thumbnail.js';
 
-const client = new ChainGPTClient({ apiKey: process.env.CHAINGPT_API_KEY });
+const client = new ChainGPTClient({
+  apiKey: process.env.CHAINGPT_API_KEY,
+  // Resilience knobs (defaults shown):
+  maxRetries: 2,    // retry PRE-stream transient failures (5xx/429/connect). Default on.
+  cache: false,     // set true (or pass a { get, set }) to cache identical calls. Off by default.
+  cacheTtlMs: 300000,
+});
 
 const thanks = await tippingCoach(client, {
   creatorName: 'EthBuilder',
@@ -104,6 +110,32 @@ into every feature that touches outside input:
 Sanitization is structural, not a complete filter — untrusted values are also
 kept lexically separated from instructions in each prompt. Run the unit tests
 (no key needed): `npm run test:unit`.
+
+## Reliability
+
+This wraps a **paid, networked** API, so the client adds resilience:
+
+- **Retry with backoff** (on by default, `maxRetries: 2`) — retries only a
+  failure that happens *before* any output exists: a connection error, 5xx, or
+  429 from `createChatStream`. A failure *during* streaming (timeout, size cap,
+  mid-stream error) is **not** retried, because the provider may already have
+  produced and billed partial output — so a retry never double-charges.
+  Permanent failures (4xx auth/validation) fail fast. Set `maxRetries: 0` to
+  disable.
+- **Response cache** (opt-in, `cache: true` or a custom `{ get, set }`) — an
+  in-memory TTL+size-bounded cache serves identical requests without re-billing.
+  The cache key is order-independent on `contextInjection`. Key derivation and
+  cache reads are best-effort: a flaky cache or an exotic `contextInjection`
+  never breaks a live call. Caches successful responses only.
+- **Structured-output parse-retry** (on by default, `parseAttempts: 2`) —
+  `scriptToThumbnail` must return JSON; LLMs intermittently wrap it in prose or
+  fences. On a parse failure it re-asks once with a stricter instruction before
+  returning `{ _parseFailed, _raw }`, so one bad roll doesn't fail the request.
+  Set `parseAttempts: 1` to disable.
+
+The client also accepts an injected `sdk` (any object with `createChatStream`),
+which makes provider-swapping and offline unit testing trivial — see
+`test/test_client.js` (no API key required).
 
 ## License
 

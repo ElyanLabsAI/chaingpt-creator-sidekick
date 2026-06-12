@@ -4,8 +4,15 @@
 // Returns { title, description, thumbnailConcept } as parsed JSON.
 // If the model returns malformed JSON, returns { _raw, _parseFailed: true }
 // so callers can decide whether to retry or display fallback UI.
+//
+// LLMs intermittently violate "return only JSON" (code fences, a stray
+// sentence, a trailing comma). One bad roll shouldn't fail the request, so the
+// JSON contract is enforced with a bounded re-ask: if the first parse fails we
+// retry with a stricter, more explicit instruction before giving up.
 
 import { sanitizeForPrompt, clampBody } from './sanitize.js';
+
+const DEFAULT_PARSE_ATTEMPTS = 2;
 
 export async function scriptToThumbnail(client, input) {
   if (!input?.script) {
@@ -23,6 +30,11 @@ export async function scriptToThumbnail(client, input) {
     ? Number(input.videoLengthMinutes)
     : undefined;
 
+  // Caller may tune how many parse attempts to make (default 2; 1 disables retry).
+  const maxAttempts = Number.isInteger(input.parseAttempts) && input.parseAttempts > 0
+    ? input.parseAttempts
+    : DEFAULT_PARSE_ATTEMPTS;
+
   const lengthLine = videoLengthMinutes
     ? `~${videoLengthMinutes} minutes long`
     : 'unknown length';
@@ -31,7 +43,7 @@ export async function scriptToThumbnail(client, input) {
     ? `from creator ${creatorName}`
     : '';
 
-  const question = `You are a YouTube/BoTTube thumbnail and metadata expert.
+  const baseQuestion = `You are a YouTube/BoTTube thumbnail and metadata expert.
 
 Given the following video script (${lengthLine}) ${creatorLine}, return a JSON object with exactly these three keys:
 
@@ -46,16 +58,45 @@ Script:
 ${script}
 """`;
 
-  const response = await client.ask({
-    question,
-    contextInjection: {
-      companyName: 'BoTTube',
-      companyDescription: 'A video platform for crypto-native creators and audiences.',
-      purpose: 'Help creators generate compelling titles, descriptions, and thumbnail concepts that perform well with crypto-savvy viewers.',
-    },
-  });
+  // Stricter reminder appended on a retry after a parse failure.
+  const strictSuffix = `
 
-  return tryParseJSON(response);
+IMPORTANT: Your previous reply was not valid JSON. Respond with ONLY a single
+JSON object containing exactly the keys "title", "description", and
+"thumbnailConcept". No code fences, no prose, no trailing text.`;
+
+  const contextInjection = {
+    companyName: 'BoTTube',
+    companyDescription: 'A video platform for crypto-native creators and audiences.',
+    purpose: 'Help creators generate compelling titles, descriptions, and thumbnail concepts that perform well with crypto-savvy viewers.',
+  };
+
+  let lastParsed = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const question = attempt === 0 ? baseQuestion : baseQuestion + strictSuffix;
+
+    let response;
+    try {
+      response = await client.ask({ question, contextInjection });
+    } catch (err) {
+      // A transient on a RETRY shouldn't erase a usable failure shape from an
+      // earlier attempt — callers expect to decide on { _parseFailed, _raw }.
+      // Only the very first attempt failing outright propagates.
+      if (lastParsed) return lastParsed;
+      throw err;
+    }
+
+    const parsed = tryParseJSON(response);
+    lastParsed = parsed;
+    // Success = a non-null object that parsed cleanly and has at least one field.
+    if (parsed && !parsed._parseFailed && (parsed.title || parsed.description || parsed.thumbnailConcept)) {
+      return parsed;
+    }
+  }
+
+  // All attempts exhausted — return the last result so the caller can decide
+  // (it carries _parseFailed / _raw when the final reply was unparseable).
+  return lastParsed;
 }
 
 function tryParseJSON(text) {
